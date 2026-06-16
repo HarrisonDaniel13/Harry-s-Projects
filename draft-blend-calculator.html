@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draft & Blend Calculator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a1a; font-size: 15px; line-height: 1.5; }
+    .page { max-width: 600px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+    .header { background: #1a3a5c; color: #fff; padding: 1.25rem 1.5rem; border-radius: 12px; margin-bottom: 1rem; }
+    .header h1 { font-size: 20px; font-weight: 600; margin-bottom: 2px; }
+    .header p { font-size: 13px; opacity: 0.75; }
+
+    .tabs { display: flex; gap: 6px; margin-bottom: 1rem; background: #fff; border-radius: 10px; padding: 4px; border: 1px solid #dde2e8; }
+    .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; border-radius: 8px; font-size: 13px; font-weight: 500; color: #666; cursor: pointer; font-family: inherit; }
+    .tab-btn.active { background: #1a3a5c; color: #fff; }
+
+    .card { background: #fff; border: 1px solid #dde2e8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+    .card-title { font-size: 12px; font-weight: 600; color: #1a3a5c; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; font-weight: 500; }
+    input, select { width: 100%; padding: 12px 12px; border: 1px solid #c5ccd6; border-radius: 8px; font-size: 16px; font-family: inherit; background: #fafbfc; color: #1a1a1a; }
+    input:focus, select:focus { outline: none; border-color: #1a3a5c; background: #fff; box-shadow: 0 0 0 3px rgba(26,58,92,0.1); }
+
+    .field { margin-bottom: 14px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .result-box { background: #eaf3ff; border: 1px solid #b8d4f5; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 0.5rem; }
+    .result-label { font-size: 12px; font-weight: 600; color: #1a5fa5; text-transform: uppercase; letter-spacing: 0.05em; }
+    .result-value { font-size: 28px; font-weight: 700; color: #0c447c; margin-top: 2px; }
+    .result-sub { font-size: 12px; color: #5a7a9a; margin-top: 4px; }
+
+    .material-row { border: 1px solid #e2e6ea; border-radius: 10px; padding: 12px; margin-bottom: 10px; background: #fafbfc; }
+    .material-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .material-label { font-size: 13px; font-weight: 600; color: #1a3a5c; }
+    .pct-badge { font-size: 15px; font-weight: 700; color: #fff; background: #1a5fa5; padding: 5px 14px; border-radius: 14px; box-shadow: 0 1px 3px rgba(26,95,165,0.3); }
+
+    .btn { padding: 11px 18px; border-radius: 8px; border: 1px solid #c5ccd6; background: #fff; color: #1a1a1a; font-size: 14px; font-family: inherit; cursor: pointer; font-weight: 500; width: 100%; }
+    .btn:hover { background: #f0f2f5; }
+    .btn-primary { background: #1a3a5c; color: #fff; border-color: #1a3a5c; }
+    .btn-primary:hover { background: #142e49; }
+
+    .stepper { display: flex; align-items: center; gap: 10px; }
+    .stepper-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid #c5ccd6; background: #fff; font-size: 18px; font-weight: 600; color: #1a3a5c; cursor: pointer; flex-shrink: 0; }
+    .stepper-value { font-size: 16px; font-weight: 600; min-width: 30px; text-align: center; }
+
+    .note { font-size: 12px; color: #888; margin-top: 6px; }
+    .hidden { display: none; }
+    .total-check { font-size: 13px; padding: 8px 12px; border-radius: 8px; margin-top: 8px; }
+    .total-check.ok { background: #e6f4ea; color: #137333; }
+    .total-check.warn { background: #fef3e7; color: #b45309; }
+
+    .opt-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+    .opt-table th { text-align: left; padding: 8px 6px; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e6ea; }
+    .opt-table td { padding: 10px 6px; border-bottom: 1px solid #eef0f3; }
+    .opt-table tr:last-child td { border-bottom: none; }
+    .opt-ends-val { font-size: 18px; font-weight: 700; color: #0c447c; }
+    .opt-pct-diff { font-size: 12px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .opt-pct-diff.close { background: #e6f4ea; color: #137333; }
+    .opt-pct-diff.off { background: #fef3e7; color: #b45309; }
+    .opt-banner { background: #e6f4ea; border: 1px solid #b8e0c4; border-radius: 10px; padding: 0.9rem 1.1rem; margin-top: 0.5rem; }
+    .opt-banner.warn { background: #fef3e7; border-color: #f5d9a8; }
+    .opt-banner-label { font-size: 12px; font-weight: 600; color: #137333; text-transform: uppercase; letter-spacing: 0.05em; }
+    .opt-banner.warn .opt-banner-label { color: #b45309; }
+    .opt-banner-value { font-size: 22px; font-weight: 700; color: #0c447c; margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Draft & Blend Calculator</h1>
+    <p>Machine setup calculations</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBtnCalc" onclick="switchTab('calc')">Blend & draft</button>
+    <button class="tab-btn" id="tabBtnOpt" onclick="switchTab('opt')">Find # of ends</button>
+  </div>
+
+  <div id="tabCalc">
+
+  <!-- ═══════════════════════════════════
+       MATERIALS (1-12)
+       Each material % = its own (Gr/yd × #ends) divided by the
+       sum of (Gr/yd × #ends) across all materials. With only 1
+       material, there's nothing to blend, so % is skipped and
+       Resulting Grains/YD just equals that material's Gr/yd.
+  ════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">Number of materials</div>
+    <div class="stepper">
+      <button class="stepper-btn" onclick="changeMaterialCount(-1)">−</button>
+      <span class="stepper-value" id="materialCountDisplay">1</span>
+      <button class="stepper-btn" onclick="changeMaterialCount(1)">+</button>
+      <span class="note" style="margin:0;flex:1;">materials (1–12)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Materials</div>
+    <div id="materialFields"></div>
+  </div>
+
+  <div class="result-box">
+    <div class="result-label">Resulting Grains / YD</div>
+    <div class="result-value" id="blendResultGrains">—</div>
+    <div class="result-sub" id="blendResultSub">Weighted average across all materials</div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       DRAFT
+       Uses the Resulting Grains/YD and total #ends from the
+       materials above, plus a desired output Grains/YD, to
+       calculate draft automatically.
+       Draft = (Resulting Grains/YD × total #ends) / Output Grains/YD
+  ════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">Desired output</div>
+    <div class="field">
+      <label>Grains / YD (output)</label>
+      <input type="number" id="draftOutputGrains" placeholder="e.g. 350" step="any" oninput="calcDraft()">
+    </div>
+    <div class="note" id="draftInputsSummary">Using Resulting Grains/YD — and total ends — from materials above</div>
+  </div>
+
+  <div class="result-box">
+    <div class="result-label">Draft</div>
+    <div class="result-value" id="draftResult">—</div>
+    <div class="result-sub">(Resulting Grains/YD × total # of ends) ÷ Output Grains/YD</div>
+  </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════
+       FIND # OF ENDS (OPTIMIZER)
+       Given each material's Gr/yd and TARGET %, plus a min/max
+       range for TOTAL ends across all materials, brute-force
+       search every valid whole-number combination and return
+       the one whose resulting percentages are closest overall
+       to the targets entered.
+  ════════════════════════════════════ -->
+  <div id="tabOpt" class="hidden">
+
+    <div class="card">
+      <div class="card-title">Number of materials</div>
+      <div class="stepper">
+        <button class="stepper-btn" onclick="changeOptMaterialCount(-1)">−</button>
+        <span class="stepper-value" id="optMaterialCountDisplay">2</span>
+        <button class="stepper-btn" onclick="changeOptMaterialCount(1)">+</button>
+        <span class="note" style="margin:0;flex:1;">materials (2–12)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Materials & targets</div>
+      <div id="optMaterialFields"></div>
+      <div class="total-check" id="optPctTotalCheck"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Total ends range</div>
+      <div class="field-row">
+        <div>
+          <label>Min total ends</label>
+          <input type="number" id="optMinEnds" value="4" step="1" min="1" oninput="runOptimizer()">
+        </div>
+        <div>
+          <label>Max total ends</label>
+          <input type="number" id="optMaxEnds" value="12" step="1" min="1" oninput="runOptimizer()">
+        </div>
+      </div>
+      <div class="note">Searches every combination in this range and picks the closest overall match to your target percentages.</div>
+    </div>
+
+    <div id="optResultsArea"></div>
+
+  </div>
+
+</div>
+
+<script>
+
+  // ── MATERIALS (1-12) ──────────────────────────────────────
+  let materialCount = 1;
+  const MAX_MATERIALS = 12;
+  const MIN_MATERIALS = 1;
+
+  // Each material stores its own Gr/yd and #ends, like the
+  // spreadsheet's "Material N Gr/yd" / "Material N #ends" pairs.
+  let materials = Array.from({ length: MAX_MATERIALS }, function() {
+    return { grYd: "", ends: "" };
+  });
+
+  // Holds the blend section's output, which feeds straight into
+  // the draft calculation below — no separate manual entry needed.
+  let resultingGrainsYd = null;
+  let totalEnds = 0;
+
+  function changeMaterialCount(delta) {
+    const next = materialCount + delta;
+    if (next < MIN_MATERIALS || next > MAX_MATERIALS) return;
+    materialCount = next;
+    document.getElementById("materialCountDisplay").textContent = materialCount;
+    renderMaterialFields();
+    calcBlend();
+  }
+
+  function renderMaterialFields() {
+    let html = "";
+    for (let i = 0; i < materialCount; i++) {
+      const m = materials[i];
+      // With only 1 material there's nothing to blend, so the
+      // percentage badge is hidden — it would always read 100%.
+      const showPct = materialCount > 1;
+      html += `
+        <div class="material-row">
+          <div class="material-header">
+            <span class="material-label">Material ${i + 1}</span>
+            ${showPct ? `<span class="pct-badge" id="matPct${i}">0%</span>` : ""}
+          </div>
+          <div class="field-row">
+            <div>
+              <label>Gr/yd</label>
+              <input type="number" value="${m.grYd}" step="any" placeholder="e.g. 343"
+                oninput="materials[${i}].grYd = this.value; calcBlend()">
+            </div>
+            <div>
+              <label># ends</label>
+              <input type="number" value="${m.ends}" step="1" placeholder="e.g. 6"
+                oninput="materials[${i}].ends = this.value; calcBlend()">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    document.getElementById("materialFields").innerHTML = html;
+  }
+
+  // Formula matches the spreadsheet's Blender Calculations section:
+  //   Material N % = (GrYd_N × ends_N) / SUM(GrYd_i × ends_i) for all i
+  //   Resulting Grains/YD = SUM(GrYd_i × ends_i) / SUM(ends_i)
+  // With 1 material this simplifies to just that material's own
+  // Gr/yd (no weighting needed since there's nothing else to blend).
+  function calcBlend() {
+    const active = materials.slice(0, materialCount);
+
+    const weighted = active.map(function(m) {
+      const grYd = parseFloat(m.grYd) || 0;
+      const ends = parseFloat(m.ends) || 0;
+      return grYd * ends;
+    });
+
+    const totalWeighted = weighted.reduce(function(sum, w) { return sum + w; }, 0);
+    totalEnds = active.reduce(function(sum, m) {
+      return sum + (parseFloat(m.ends) || 0);
+    }, 0);
+
+    if (materialCount > 1) {
+      active.forEach(function(m, i) {
+        const pctEl = document.getElementById("matPct" + i);
+        if (!pctEl) return;
+        const pct = totalWeighted > 0 ? (weighted[i] / totalWeighted) * 100 : 0;
+        pctEl.textContent = pct.toFixed(1) + "%";
+      });
+    }
+
+    const resultEl = document.getElementById("blendResultGrains");
+    const subEl = document.getElementById("blendResultSub");
+
+    if (totalEnds === 0) {
+      resultEl.textContent = "—";
+      resultingGrainsYd = null;
+      subEl.textContent = materialCount > 1 ? "Weighted average across all materials" : "Enter Gr/yd and # ends above";
+    } else {
+      resultingGrainsYd = totalWeighted / totalEnds;
+      resultEl.textContent = Math.round(resultingGrainsYd);
+      subEl.textContent = materialCount > 1
+        ? "Weighted average across all materials"
+        : "Same as Material 1's Gr/yd (nothing to blend with 1 material)";
+    }
+
+    updateDraftInputsSummary();
+    calcDraft();
+  }
+
+  function updateDraftInputsSummary() {
+    const el = document.getElementById("draftInputsSummary");
+    if (resultingGrainsYd === null || totalEnds === 0) {
+      el.textContent = "Using Resulting Grains/YD — and total ends — from materials above";
+    } else {
+      el.textContent = `Using Resulting Grains/YD (${Math.round(resultingGrainsYd)}) × total ends (${totalEnds}) from materials above`;
+    }
+  }
+
+  // ── DRAFT ─────────────────────────────────────────────────
+  // Draft = (Resulting Grains/YD × total # of ends) ÷ Output Grains/YD
+  // Resulting Grains/YD and total ends come straight from the
+  // materials section above — no separate manual entry needed.
+  function calcDraft() {
+    const outputGrains = parseFloat(document.getElementById("draftOutputGrains").value);
+    const resultEl = document.getElementById("draftResult");
+
+    if (resultingGrainsYd === null || totalEnds === 0 || isNaN(outputGrains) || outputGrains === 0) {
+      resultEl.textContent = "—";
+      return;
+    }
+
+    const draft = (resultingGrainsYd * totalEnds) / outputGrains;
+    resultEl.textContent = draft.toFixed(2);
+  }
+
+  // ── TAB SWITCHING ─────────────────────────────────────────
+  function switchTab(tab) {
+    document.getElementById("tabCalc").classList.toggle("hidden", tab !== "calc");
+    document.getElementById("tabOpt").classList.toggle("hidden", tab !== "opt");
+    document.getElementById("tabBtnCalc").classList.toggle("active", tab === "calc");
+    document.getElementById("tabBtnOpt").classList.toggle("active", tab === "opt");
+  }
+
+  // ── FIND # OF ENDS (OPTIMIZER) ───────────────────────────
+  // Each material has a Gr/yd and a TARGET percentage (entered
+  // by the user, not calculated). We brute-force every valid
+  // whole-number combination of #ends per material whose TOTAL
+  // falls within the min/max range, compute the resulting %
+  // each combination would actually produce, and keep whichever
+  // combination's percentages are closest overall to the targets.
+  let optMaterialCount = 2;
+  let optMaterials = Array.from({ length: MAX_MATERIALS }, function() {
+    return { grYd: "", targetPct: "" };
+  });
+
+  function changeOptMaterialCount(delta) {
+    const next = optMaterialCount + delta;
+    if (next < 2 || next > MAX_MATERIALS) return;
+    optMaterialCount = next;
+    document.getElementById("optMaterialCountDisplay").textContent = optMaterialCount;
+    renderOptMaterialFields();
+    runOptimizer();
+  }
+
+  function renderOptMaterialFields() {
+    let html = "";
+    for (let i = 0; i < optMaterialCount; i++) {
+      const m = optMaterials[i];
+      html += `
+        <div class="material-row">
+          <div class="material-header">
+            <span class="material-label">Material ${i + 1}</span>
+          </div>
+          <div class="field-row">
+            <div>
+              <label>Gr/yd</label>
+              <input type="number" value="${m.grYd}" step="any" placeholder="e.g. 343"
+                oninput="optMaterials[${i}].grYd = this.value; runOptimizer()">
+            </div>
+            <div>
+              <label>Target %</label>
+              <input type="number" value="${m.targetPct}" step="any" placeholder="e.g. 75"
+                oninput="optMaterials[${i}].targetPct = this.value; runOptimizer()">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    document.getElementById("optMaterialFields").innerHTML = html;
+  }
+
+  // Brute-force search: try every combination of #ends (1 to maxEnds
+  // per material) whose total falls within [minTotal, maxTotal], score
+  // each by total absolute % error vs targets, keep the lowest-error one.
+  // With ends typically 4-12 and up to 12 materials this space is small
+  // enough to search exhaustively and guarantee the true best fit.
+  // A hard iteration cap guards against pathological inputs (very wide
+  // ranges with many materials) so the browser can never hang.
+  const OPTIMIZER_ITERATION_CAP = 2000000;
+
+  function findOptimalEnds(active, minTotal, maxTotal) {
+    const n = active.length;
+    let best = null;
+    let bestError = Infinity;
+    let iterations = 0;
+    let aborted = false;
+
+    function search(idx, current, currentSum) {
+      if (aborted) return;
+      if (currentSum > maxTotal) return;
+
+      if (idx === n) {
+        iterations++;
+        if (iterations > OPTIMIZER_ITERATION_CAP) { aborted = true; return; }
+        if (currentSum < minTotal || currentSum > maxTotal) return;
+
+        const weighted = active.map(function(m, i) { return (parseFloat(m.grYd) || 0) * current[i]; });
+        const totalWeighted = weighted.reduce(function(s, w) { return s + w; }, 0);
+        if (totalWeighted === 0) return;
+
+        let error = 0;
+        active.forEach(function(m, i) {
+          const actualPct = (weighted[i] / totalWeighted) * 100;
+          const targetPct = parseFloat(m.targetPct) || 0;
+          error += Math.abs(actualPct - targetPct);
+        });
+
+        if (error < bestError) {
+          bestError = error;
+          best = { ends: current.slice(), totalEnds: currentSum, weighted: weighted, totalWeighted: totalWeighted };
+        }
+        return;
+      }
+
+      // Tight bounds on this material's possible ends, given what's
+      // already been allocated and what remains:
+      //   - Upper: can't take more than would leave at least 1 end
+      //     for every remaining material, or exceed maxTotal overall.
+      //   - Lower: must take enough that even if every remaining
+      //     material takes only its minimum (1 each), the final
+      //     total can still reach minTotal.
+      const remainingAfter = n - idx - 1;
+      const localMax = maxTotal - currentSum - remainingAfter;
+      const localMin = Math.max(1, minTotal - currentSum - remainingAfter);
+      for (let e = localMin; e <= localMax; e++) {
+        current.push(e);
+        search(idx + 1, current, currentSum + e);
+        current.pop();
+        if (aborted) return;
+      }
+    }
+
+    search(0, [], 0);
+    if (aborted) return { aborted: true };
+    return best;
+  }
+
+  function runOptimizer() {
+    const active = optMaterials.slice(0, optMaterialCount);
+    const minTotal = parseInt(document.getElementById("optMinEnds").value) || 1;
+    const maxTotal = parseInt(document.getElementById("optMaxEnds").value) || 12;
+
+    const resultsArea = document.getElementById("optResultsArea");
+    const totalCheckEl = document.getElementById("optPctTotalCheck");
+
+    // Show a running total of target percentages so the user can
+    // see if their targets sum to roughly 100% before searching.
+    const pctSum = active.reduce(function(s, m) { return s + (parseFloat(m.targetPct) || 0); }, 0);
+    if (pctSum > 0) {
+      const isClose = Math.abs(pctSum - 100) < 0.5;
+      totalCheckEl.className = "total-check " + (isClose ? "ok" : "warn");
+      totalCheckEl.textContent = isClose
+        ? `Target percentages total ${pctSum.toFixed(1)}%`
+        : `Target percentages total ${pctSum.toFixed(1)}% — should add up to 100%`;
+    } else {
+      totalCheckEl.textContent = "";
+      totalCheckEl.className = "total-check";
+    }
+
+    const hasAllInputs = active.every(function(m) { return m.grYd !== "" && m.targetPct !== ""; });
+    if (!hasAllInputs || minTotal > maxTotal || maxTotal > 200) {
+      resultsArea.innerHTML = !hasAllInputs ? "" : `<div class="opt-banner warn"><div class="opt-banner-label">Range too wide</div><div class="note" style="margin-top:4px;">Keep max total ends at 200 or below.</div></div>`;
+      return;
+    }
+
+    // Every material needs at least 1 end, so total ends can never be
+    // lower than the number of materials — that's a hard physical floor,
+    // not just a preference. If the entered range's max can't even reach
+    // that floor, there's no valid combination at all.
+    if (maxTotal < optMaterialCount) {
+      resultsArea.innerHTML = `<div class="opt-banner warn"><div class="opt-banner-label">Not enough ends</div><div class="note" style="margin-top:4px;">With ${optMaterialCount} materials, each needs at least 1 end, so total ends must be at least ${optMaterialCount}. Raise the max ends above ${optMaterialCount - 1}.</div></div>`;
+      return;
+    }
+    if (minTotal < optMaterialCount) {
+      totalCheckEl.innerHTML += `<div class="note" style="margin-top:4px;color:#b45309;">Note: with ${optMaterialCount} materials, the effective minimum is ${optMaterialCount} ends (1 per material) — totals below that aren't physically possible and won't appear in the search.</div>`;
+    }
+
+    const result = findOptimalEnds(active, minTotal, maxTotal);
+
+    if (!result || result.aborted) {
+      resultsArea.innerHTML = `<div class="opt-banner warn"><div class="opt-banner-label">${result && result.aborted ? "Search too large" : "No combination found"}</div><div class="note" style="margin-top:4px;">${result && result.aborted ? "Try narrowing the min/max ends range or reducing materials." : "Try widening the min/max ends range."}</div></div>`;
+      return;
+    }
+
+    let rows = "";
+    active.forEach(function(m, i) {
+      const actualPct = (result.weighted[i] / result.totalWeighted) * 100;
+      const targetPct = parseFloat(m.targetPct) || 0;
+      const diff = actualPct - targetPct;
+      const isClose = Math.abs(diff) < 2;
+      rows += `
+        <tr>
+          <td>Material ${i + 1}</td>
+          <td class="opt-ends-val">${result.ends[i]}</td>
+          <td>${actualPct.toFixed(1)}%<br><span class="opt-pct-diff ${isClose ? "close" : "off"}">target ${targetPct}%</span></td>
+        </tr>
+      `;
+    });
+
+    const resultingGrYd = result.totalWeighted / result.totalEnds;
+
+    resultsArea.innerHTML = `
+      <div class="card">
+        <div class="card-title">Optimal ends per material</div>
+        <table class="opt-table">
+          <thead><tr><th>Material</th><th>Ends</th><th>Resulting %</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="opt-banner">
+        <div class="opt-banner-label">Total ends</div>
+        <div class="opt-banner-value">${result.totalEnds}</div>
+        <div class="note" style="margin-top:6px;">Resulting Grains/YD: ${Math.round(resultingGrYd)}</div>
+      </div>
+    `;
+  }
+
+  // ── INIT ─────────────────────────────────────────────────
+  function init() {
+    renderMaterialFields();
+    calcBlend();
+    renderOptMaterialFields();
+  }
+
+  window.onload = init;
+</script>
+</body>
+</html>
