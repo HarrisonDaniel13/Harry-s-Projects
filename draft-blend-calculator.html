@@ -312,6 +312,26 @@
     resultEl.textContent = draft.toFixed(2);
   }
 
+  // Same formula as calcDraft() above, but uses the optimizer's
+  // resulting grains/yd and total ends instead of the Blend & draft
+  // tab's values, and writes into the result box rendered alongside
+  // the optimizer's results.
+  function calcOptDraft() {
+    const outputEl = document.getElementById("optDraftOutputGrains");
+    const resultEl = document.getElementById("optDraftResult");
+    if (!outputEl || !resultEl) return;
+
+    const outputGrains = parseFloat(outputEl.value);
+
+    if (optResultingGrainsYd === null || optTotalEnds === 0 || isNaN(outputGrains) || outputGrains === 0) {
+      resultEl.textContent = "—";
+      return;
+    }
+
+    const draft = (optResultingGrainsYd * optTotalEnds) / outputGrains;
+    resultEl.textContent = draft.toFixed(2);
+  }
+
   // ── TAB SWITCHING ─────────────────────────────────────────
   function switchTab(tab) {
     document.getElementById("tabCalc").classList.toggle("hidden", tab !== "calc");
@@ -331,6 +351,12 @@
   let optMaterials = Array.from({ length: MAX_MATERIALS }, function() {
     return { grYd: "", targetPct: "" };
   });
+
+  // Holds the optimizer's resulting grains/yd and total ends, which
+  // feed into this tab's own draft calculation once a desired output
+  // Grains/YD is entered.
+  let optResultingGrainsYd = null;
+  let optTotalEnds = 0;
 
   function changeOptMaterialCount(delta) {
     const next = optMaterialCount + delta;
@@ -411,17 +437,16 @@
         return;
       }
 
-      // Tight bounds on this material's possible ends, given what's
-      // already been allocated and what remains:
-      //   - Upper: can't take more than would leave at least 1 end
-      //     for every remaining material, or exceed maxTotal overall.
-      //   - Lower: must take enough that even if every remaining
-      //     material takes only its minimum (1 each), the final
-      //     total can still reach minTotal.
+      // Upper bound: this material can't take more ends than would
+      // leave at least 1 end for every remaining material, or exceed
+      // maxTotal overall. (A lower-bound prune was tried here too, but
+      // it incorrectly forced this material to over-allocate whenever
+      // minTotal and maxTotal were close together, producing wrong
+      // answers — so the floor stays at 1, and the minTotal check at
+      // the leaf is what actually rejects under-filled combinations.)
       const remainingAfter = n - idx - 1;
       const localMax = maxTotal - currentSum - remainingAfter;
-      const localMin = Math.max(1, minTotal - currentSum - remainingAfter);
-      for (let e = localMin; e <= localMax; e++) {
+      for (let e = 1; e <= localMax; e++) {
         current.push(e);
         search(idx + 1, current, currentSum + e);
         current.pop();
@@ -459,6 +484,8 @@
     const hasAllInputs = active.every(function(m) { return m.grYd !== "" && m.targetPct !== ""; });
     if (!hasAllInputs || minTotal > maxTotal || maxTotal > 200) {
       resultsArea.innerHTML = !hasAllInputs ? "" : `<div class="opt-banner warn"><div class="opt-banner-label">Range too wide</div><div class="note" style="margin-top:4px;">Keep max total ends at 200 or below.</div></div>`;
+      optResultingGrainsYd = null;
+      optTotalEnds = 0;
       return;
     }
 
@@ -468,6 +495,8 @@
     // that floor, there's no valid combination at all.
     if (maxTotal < optMaterialCount) {
       resultsArea.innerHTML = `<div class="opt-banner warn"><div class="opt-banner-label">Not enough ends</div><div class="note" style="margin-top:4px;">With ${optMaterialCount} materials, each needs at least 1 end, so total ends must be at least ${optMaterialCount}. Raise the max ends above ${optMaterialCount - 1}.</div></div>`;
+      optResultingGrainsYd = null;
+      optTotalEnds = 0;
       return;
     }
     if (minTotal < optMaterialCount) {
@@ -478,6 +507,8 @@
 
     if (!result || result.aborted) {
       resultsArea.innerHTML = `<div class="opt-banner warn"><div class="opt-banner-label">${result && result.aborted ? "Search too large" : "No combination found"}</div><div class="note" style="margin-top:4px;">${result && result.aborted ? "Try narrowing the min/max ends range or reducing materials." : "Try widening the min/max ends range."}</div></div>`;
+      optResultingGrainsYd = null;
+      optTotalEnds = 0;
       return;
     }
 
@@ -496,7 +527,17 @@
       `;
     });
 
-    const resultingGrYd = result.totalWeighted / result.totalEnds;
+    // Store these so calcOptDraft() can use them once the user enters
+    // a desired output Grains/YD, the same way the Blend & draft tab
+    // feeds its Resulting Grains/YD + total ends into its draft calc.
+    optResultingGrainsYd = result.totalWeighted / result.totalEnds;
+    optTotalEnds = result.totalEnds;
+
+    // Preserve whatever the user already typed in the output field
+    // across re-renders, since this whole area gets rebuilt on every
+    // keystroke in the materials/range inputs above.
+    const existingOutputEl = document.getElementById("optDraftOutputGrains");
+    const preservedOutput = existingOutputEl ? existingOutputEl.value : "";
 
     resultsArea.innerHTML = `
       <div class="card">
@@ -509,9 +550,26 @@
       <div class="opt-banner">
         <div class="opt-banner-label">Total ends</div>
         <div class="opt-banner-value">${result.totalEnds}</div>
-        <div class="note" style="margin-top:6px;">Resulting Grains/YD: ${Math.round(resultingGrYd)}</div>
+        <div class="note" style="margin-top:6px;">Resulting Grains/YD: ${Math.round(optResultingGrainsYd)}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Desired output</div>
+        <div class="field">
+          <label>Grains / YD (output)</label>
+          <input type="number" id="optDraftOutputGrains" value="${preservedOutput}" placeholder="e.g. 350" step="any" oninput="calcOptDraft()">
+        </div>
+        <div class="note">Using Resulting Grains/YD (${Math.round(optResultingGrainsYd)}) × total ends (${optTotalEnds}) from above</div>
+      </div>
+
+      <div class="result-box">
+        <div class="result-label">Draft</div>
+        <div class="result-value" id="optDraftResult">—</div>
+        <div class="result-sub">(Resulting Grains/YD × total # of ends) ÷ Output Grains/YD</div>
       </div>
     `;
+
+    calcOptDraft();
   }
 
   // ── INIT ─────────────────────────────────────────────────
